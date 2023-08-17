@@ -1,0 +1,654 @@
+%% TEST ITERATED CODE BLOCK
+% Will
+% Frame Study: How well do participants bind static images with 2-second
+% audio sample? Do participants' responses reflect ImageBind embeddings?
+
+clear;
+close all;
+clc;
+
+KbName('UnifyKeyNames')
+KbQueueCreate();
+
+%% Input Participant ID
+participantID = input('Participant ID: ', 's');
+
+% Create a cell array with 100 cells, each containing the participant ID
+% ID_cell =     cell(1, 100); % Row Vector
+ID_cell = cell(1,100); % Column Vector
+ID_cell(:) = {participantID};
+
+
+% Set Standardized Volume
+% volume = SoundVolume(.2);    % This function is not working...
+
+
+% Set the keys you want to detect
+leftKey = KbName('LeftArrow');
+rightKey = KbName('RightArrow');
+
+
+% May change this later. May instead just add to a column of dataMatrix.
+% results = struct('Trial', [], 'Response', [], 'BestImage_Key', []);
+
+
+responseTime = 0;
+
+
+img_key = {'Baby Babbling','Baby Crying','Baby Laughing','Baby Sneezing','Blowing Nose','Burping','Child (Girl) Speaking','Children (Group) Yelling','Choir Singing','Clapping','Coughing','Crowd Cheering','Eating Crunchy Fried Chicken','Hiccup','Humming','Person speaking (foreign language)','Person speaking English','Person Eating Candy','Whistling','Smacking Lips, Slurping Popsicle','Snapping fingers','Tap Dancing','Woman_Speaking_English','Woman_Speaking_Chinese','Man Yells, Woman Screams','Whispering','Hiccuping','Baby Duck','Baby Mouse','Bees','Chickadee (Bird)','Cat','Chicken','Cow','Dog','Donkey','Elephant','Elk','Frog','Gibbons','Goat','Geese','Baby Horse','Lions','Owl','Pig','Rooster','Snake','Turkey','Crows','Electric Guitar','Acoustic Guitar','Church Bell','Keyboard (Instrument)','Saxophone','Snare Drums','Trumpet','Ukulele','Violin','Wind Chimes','Flute','Boat Foghorn','Car Drifting','Helicopter','Airplane','Ambulance (Siren)','Motorcycle Revving','Train','Backpack Zipper','Cap Gun','Clock Ticking','Electric Blender','Electric Razor','Fireworks','Glasses Clinking','Golf Driver Shot','Hammering a Nail','Keyboard (Computer) Typing','Tennis','Light Switch','Metal Pots','Open Door','Ping Pong','Pouring Liquid','Sharpening Knife','Sink','Skateboard','Stovetop Turning On','Tearing Paper','Telephone','Toilet','Vacuum','Chainsaw Cutting Wood','Chopping an Onion','Stepping on Cracking Ice','Crackling Fire','Hail','Raining','Waterfall','Waves'};
+
+
+%% Directories
+% mac_aud_dir = '/Volumes/WallaceLab/dors/wallacelab/DavidTovar/AV_Sets/100set_FINAL/Audio';
+audio_image_dir = '/Volumes/WallaceLab/dors/wallacelab/DavidTovar/AV_Sets/100set_FINAL/Audio';
+script_dir = '/Volumes/WallaceLab/dors/wallacelab/DavidTovar/AV_Sets/100set_FINAL/Code';
+cd(audio_image_dir)
+
+% Image files
+filePattern = fullfile(audio_image_dir, '*.mat');
+ImageFiles = dir(filePattern);
+
+% Audio files
+filePatternAudio = fullfile(audio_image_dir, '*.mp3');
+AudioFiles = dir(filePatternAudio);
+
+% IQA measurements
+load('/Volumes/WallaceLab/dors/wallacelab/DavidTovar/AV_Sets/100set_FINAL/Code/NR_IQA_scores.mat')
+
+%% Load Audio and Image Path
+cd(script_dir)
+[AudioFilesSet, best_image, worst_image, binding_max, binding_min, binding_diff] = load_audio_image_files(ImageFiles, AudioFiles, audio_image_dir, script_dir);
+
+% [good_brisque, bad_brisque, good_niqe, bad_niqe, good_piqe, bad_piqe, IQA_scores] = NR_IQA_scores(AudioFilesSet, best_image, worst_image);
+%
+% save_directory = '/Volumes/WallaceLab/dors/wallacelab/DavidTovar/AV_Sets/100set_FINAL/Code';
+% file_name = 'NR_IQA_scores2';
+% full_file_path = fullfile(save_directory, [file_name, '.mat']);
+% save(full_file_path, 'IQA_scores');
+
+%% DATA MATRIX
+% Column 1: Participant ID
+% Column 2: Audio Path
+% Column 3: Best Image Path
+% Column 4: Worst Image Path
+% Column 5: Image Key
+% Column 6: Binding Difference
+% Column 7: Binding Max Value
+% Column 8: Binding Min Value
+% Column 9: BRISQUE Best
+% Column 10: BRISQUE Worst
+% Column 11: NIQE Best
+% Column 12: NIQE Worst
+% Column 13: PIQE Best
+% Column 14: PIQE Worst
+% Column 15: Participant Response
+% Column 16: Best Image Response Key
+% Column 17: Correct/Incorrect (1 = Correct; 0 = Incorrect)
+% Column 18: Total Correct for Trial Type (0-3; Each trial is 3x)
+% Column 19: Reaction Time
+
+dataMatrix = create_dataMatrix(ID_cell, AudioFilesSet, best_image, worst_image, img_key, binding_diff, binding_max, binding_min, IQA_scores);
+
+
+% Select Screen Background Color: Gray
+grayLevel = 128;
+backgroundColor = [grayLevel grayLevel grayLevel];
+
+
+%% Define the text prompt (this will be constant for every trial).
+promptText = 'Which image best represents the audio message?';
+textSize = 50;  % Adjust the text size as needed
+
+% Define text properties
+textColor = [255 255 255];  % White color
+textFont = 'Arial';
+
+AssertOpenGL;
+
+% Select Primary Screen (this will be the screen that displays experiment)
+screens= Screen('Screens');
+primaryScreen = max(screens);
+
+% Open a Psychtoolbox window
+window = PsychImaging('OpenWindow', primaryScreen, backgroundColor);
+
+% Determine the screen size
+screenSize = Screen('Rect', window);
+screenWidth = screenSize(3);
+screenHeight = screenSize(4);
+
+
+%% Welcome message
+welcomeMessage = 'Welcome to the experiment!';
+welcomeTextSize = 50;  % Adjust the text size as needed
+welcomeTextColor = [255 255 255];  % White color
+
+% Get the size of the welcome message bounding box
+[welcomeTextBounds, ~] = Screen('TextBounds', window, welcomeMessage);
+welcomeTextWidth = welcomeTextBounds(3) - welcomeTextBounds(1);
+welcomeTextHeight = welcomeTextBounds(4) - welcomeTextBounds(2);
+
+% Calculate the position to center the welcome message on the screen
+welcomeTextX = (screenWidth - welcomeTextWidth) / 2;
+welcomeTextY = (screenHeight - welcomeTextHeight) / 2;
+
+% Draw the welcome message on the screen
+Screen('TextFont', window, textFont);
+Screen('TextSize', window, welcomeTextSize);
+DrawFormattedText(window, welcomeMessage, 'center', 'center', welcomeTextColor);
+
+% Prompt message
+promptMessage = '(Press the space bar to continue)';
+promptTextSize = 30;  % Adjust the text size as needed
+promptTextColor = [255 255 255];  % White color
+
+% Get the size of the prompt message bounding box
+[promptTextBounds, ~] = Screen('TextBounds', window, promptMessage);
+promptTextWidth = promptTextBounds(3) - promptTextBounds(1);
+promptTextHeight = promptTextBounds(4) - promptTextBounds(2);
+
+% Calculate the position to center the prompt message horizontally and place it at the bottom of the screen
+promptTextX = (screenWidth - promptTextWidth) / 2;
+promptTextY = screenHeight - promptTextHeight;  % Adjust the vertical position as needed
+
+% Draw the prompt message on the screen
+Screen('TextFont', window, textFont);
+Screen('TextSize', window, promptTextSize);
+DrawFormattedText(window, promptMessage, 'center', promptTextY, promptTextColor);
+
+% Flip the screen to display the messages
+Screen('Flip', window);
+
+% Wait for a spacebar keypress to continue
+while true
+    [~, keyCode] = KbWait();
+    if keyCode(KbName('space'))
+        break;
+    end
+end
+
+% Clear the keyboard buffer to remove any additional keypresses
+FlushEvents('keyDown');
+
+% Add a short delay to give participants time to read the instructions
+WaitSecs(1);  % Adjust the delay time as needed (e.g., 1 second)
+
+%% Instructions
+% Additional instruction message
+instructionMessage = 'You will see two images appear side-by-side on the screen.\n These two images belong to different moments of the same video scene. \n As a result, they may be highly similar. \nA short 2-second audio clip will overlay these images.\nMake sure you are listening carefully, as the audio clips will not be repeated.';
+instructionTextSize = 50;  % Adjust the text size as needed
+instructionTextColor = [255 255 255];  % White color
+
+% Get the size of the in struction message bounding box
+[instructionTextBounds, ~] = Screen('TextBounds', window, instructionMessage);
+instructionTextWidth = instructionTextBounds(3) - instructionTextBounds(1);
+instructionTextHeight = instructionTextBounds(4) - instructionTextBounds(2);
+
+% Calculate the position to center the instruction message on the screen
+instructionTextX = (screenWidth - instructionTextWidth) / 2;
+instructionTextY = welcomeTextY + welcomeTextHeight +  50;  % Adjust the vertical position as needed
+
+% Draw the instruction message on the screen
+Screen('TextFont', window, textFont);
+Screen('TextSize', window, instructionTextSize);
+DrawFormattedText(window, instructionMessage, 'center', instructionTextY, instructionTextColor, [], [], [], 2);
+
+% Draw the prompt message on the screen
+Screen('TextFont', window, textFont);
+Screen('TextSize', window, promptTextSize);
+DrawFormattedText(window, promptMessage, 'center', promptTextY, promptTextColor);
+
+% Flip the screen to display the messages
+Screen('Flip', window);
+
+% Wait for a spacebar keypress to continue
+while true
+    [~, keyCode] = KbWait();
+    if keyCode(KbName('space'))
+        break;
+    end
+end
+
+% Clear the keyboard buffer to remove any additional keypresses
+FlushEvents('keyDown');
+
+% Add a short delay to give participants time to read the instructions
+WaitSecs(1);  % Adjust the delay time as needed (e.g., 1 second)
+
+
+%% Instructions
+% Additional instruction message
+instructionMessage = 'Your task will be to choose the image that best matches the production of the audio clip. \nPress the left arrow key to choose the left image, and press the right arrow key to choose the right image.';  % Your task will be to choose the image
+instructionTextSize = 50;  % Adjust the text size as needed
+instructionTextColor = [255 255 255];  % White color
+
+% Get the size of the in struction message bounding box
+[instructionTextBounds, ~] = Screen('TextBounds', window, instructionMessage);
+instructionTextWidth = instructionTextBounds(3) - instructionTextBounds(1);
+instructionTextHeight = instructionTextBounds(4) - instructionTextBounds(2);
+
+% Calculate the position to center the instruction message on the screen
+instructionTextX = (screenWidth - instructionTextWidth) / 2;
+instructionTextY = welcomeTextY + welcomeTextHeight +  50;  % Adjust the vertical position as needed
+
+% Draw the instruction message on the screen
+Screen('TextFont', window, textFont);
+Screen('TextSize', window, instructionTextSize);
+DrawFormattedText(window, instructionMessage, 'center', instructionTextY, instructionTextColor, [], [], [], 2);
+
+% Draw the prompt message on the screen
+Screen('TextFont', window, textFont);
+Screen('TextSize', window, promptTextSize);
+DrawFormattedText(window, promptMessage, 'center', promptTextY, promptTextColor);
+
+% Flip the screen to display the messages
+Screen('Flip', window);
+
+% Wait for a spacebar keypress to continue
+while true
+    [~, keyCode] = KbWait();
+    if keyCode(KbName('space'))
+        break;
+    end
+end
+
+% Clear the keyboard buffer to remove any additional keypresses
+FlushEvents('keyDown');
+
+% Add a short delay to give participants time to read the instructions
+WaitSecs(1);  % Adjust the delay time as needed (e.g., 1 second)
+
+
+%% Instructions
+% Additional instruction message
+instructionMessage = 'The task should take approximately 15 minutes. \nAny questions?';
+instructionTextSize = 50;  % Adjust the text size as needed
+instructionTextColor = [255 255 255];  % White color
+
+% Get the size of the in struction message bounding box
+[instructionTextBounds, ~] = Screen('TextBounds', window, instructionMessage);
+instructionTextWidth = instructionTextBounds(3) - instructionTextBounds(1);
+instructionTextHeight = instructionTextBounds(4) - instructionTextBounds(2);
+
+% Calculate the position to center the instruction message on the screen
+instructionTextX = (screenWidth - instructionTextWidth) / 2;
+instructionTextY = welcomeTextY + welcomeTextHeight +  50;  % Adjust the vertical position as needed
+
+% Draw the instruction message on the screen
+Screen('TextFont', window, textFont);
+Screen('TextSize', window, instructionTextSize);
+DrawFormattedText(window, instructionMessage, 'center', instructionTextY, instructionTextColor, [], [], [], 2);
+
+% Draw the prompt message on the screen
+Screen('TextFont', window, textFont);
+Screen('TextSize', window, promptTextSize);
+DrawFormattedText(window, promptMessage, 'center', promptTextY, promptTextColor);
+
+% Flip the screen to display the messages
+Screen('Flip', window);
+
+% Wait for a spacebar keypress to continue
+while true
+    [~, keyCode] = KbWait();
+    if keyCode(KbName('space'))
+        break;
+    end
+end
+
+% Clear the keyboard buffer to remove any additional keypresses
+FlushEvents('keyDown');
+
+% Add a short delay to give participants time to read the instructions
+WaitSecs(1);  % Adjust the delay time as needed (e.g., 1 second)
+
+
+%%   Calculate the dimensions and positions of the images
+imageWidth = floor(screenWidth / 4);  % Adjust the width as needed
+imageHeight = floor(screenHeight / 2);  % Adjust the height as needed
+
+spaceBetweenImages = floor(screenWidth / 8);  % Adjust the space as needed
+
+% Calculate the positions for each image
+image1Rect = [screenWidth / 2 - spaceBetweenImages - imageWidth, ...
+    (screenHeight - imageHeight) / 2, ...
+    screenWidth / 2 - spaceBetweenImages, ...
+    (screenHeight + imageHeight) / 2];
+
+image2Rect = [screenWidth / 2 + spaceBetweenImages, ...
+    (screenHeight - imageHeight) / 2, ...
+    screenWidth / 2 + spaceBetweenImages + imageWidth, ...
+    (screenHeight + imageHeight) / 2];
+
+
+% If ERROR, put back into loop after draw texture
+% Get the size of the text bounding box
+[textBounds, ~] = Screen('TextBounds', window, promptText);
+textWidth = textBounds(3) - textBounds(1);
+textHeight = textBounds(4) - textBounds(2);
+
+% Calculate the position to center the text above the images
+textX = screenWidth / 2 - textWidth / 2;
+textY = (screenHeight - imageHeight) / 2 - textHeight - 20;  % Adjust the vertical position as needed
+
+% Open PsychPortAudio audio handle
+fs = 48000;
+numChannels = 2;
+InitializePsychSound(1);  % Initialize PsychPortAudio
+pahandle = PsychPortAudio('Open', [], [], 0, fs, numChannels);
+
+% Initialize the variable to count the correct responses
+numCorrectResponses = 0;
+
+
+% Initialize a cell array to store unique pairs of stimuli
+uniqueStimuliPairs = {};
+
+
+%% Define the number of blocks
+numBlocks = 2;
+
+% Initialize an offset for indexing data within the dataMatrix
+%%offset = 0;
+
+% Loop through each block
+for block_number = 1:numBlocks
+    % Calculate the indices for the current block's trials
+    startIdx = (block_number - 1) * 100 + 1;
+    endIdx = block_number * 100;
+
+    % Iterate through the trials in the current block
+    for trialNumber = startIdx:endIdx
+
+        %for trialNumber = 1:length(dataMatrix)
+        % Calculate the adjusted trialNumber using the offset
+        %adjustedTrialNumber = trialNumber + offset;
+
+        % Shuffle the indices 1 and 2 to randomize the assignment
+        randomIndices = randperm(2);
+
+        % Read in best and worst ImageBind frame
+        best_image = imread(dataMatrix{trialNumber, 3});
+        worst_image = imread(dataMatrix{trialNumber, 4});
+
+        % Create textures from the images
+        best_texture = Screen('MakeTexture', window, best_image);
+        worst_texture = Screen('MakeTexture', window, worst_image);
+
+        % Initialize a variable to store the position of the best texture
+        bestTexturePosition = 0;
+
+        % Draw the textures on the screen based on the randomized assignment
+        if randomIndices(1) == 1
+            % Draw best_texture on image1Rect and worst_texture on image2Rect
+            Screen('DrawTexture', window, best_texture, [], image1Rect);
+            Screen('DrawTexture', window, worst_texture, [], image2Rect);
+
+            % Log that best_texture was drawn on image1Rect (position 1)
+            bestTexturePosition = 'Left';
+
+        else
+            % Draw best_texture on image2Rect and worst_texture on image1Rect
+            Screen('DrawTexture', window, best_texture, [], image2Rect);
+            Screen('DrawTexture', window, worst_texture, [], image1Rect);
+
+            % Log that best_texture was drawn on image2Rect (position 2)
+            bestTexturePosition = 'Right';
+        end
+
+        % Draw the text on the screen
+        Screen('TextFont', window, textFont);
+        Screen('TextSize', window, textSize);
+        DrawFormattedText(window, promptText, 'center', textY, textColor);
+
+        % Prepare audio data
+        audioFile = dataMatrix{trialNumber, 2};
+        [aud, fs] = audioread(audioFile);
+        audioData = aud';
+
+        % Determine the desired target volume level (e.g., -1 for maximum amplitude of -1)
+        targetVolume = -1;
+
+        % Calculate the maximum peak value of the audio data
+        maxPeakValue = max(abs(audioData(:)));
+
+        % Normalize the audio data to the desired target volume level
+        normalizedAudioData = audioData / maxPeakValue * targetVolume;
+
+        if trialNumber == 1
+            numChannels = size(normalizedAudioData, 1);
+            audioLength = size(normalizedAudioData, 2);
+        end
+
+        Screen('Flip', window, 0);  % Update the display
+
+        % Load normalized audio data into the audio buffer
+        PsychPortAudio('FillBuffer', pahandle, normalizedAudioData);
+
+        % Start audio playback and record the start time
+        PsychPortAudio('Start', pahandle, 1, 0, 1);
+
+        startTime = GetSecs;
+
+        WaitSecs(2); % Wait for audio to completely finish before entering response.
+        KbQueueStart(); % Start delivering keyboard presses from the computer to the queue (created in line 10)
+
+        while true
+            [pressed, firstPress] = KbQueueCheck(); % Obtains data about keypresses since KbQueueStart
+
+            if pressed && (firstPress(leftKey) || firstPress(rightKey)) % Keypress Left or Right Arrow
+                break;
+            end
+        end
+
+        % Stop listening for key presses
+        KbQueueStop();
+
+        % Record the response time after the while loop
+        responseTime = GetSecs - startTime - 2;
+
+        % Process the response and move on to the next trial
+        if firstPress(leftKey)
+            response = 'Left';
+        elseif firstPress(rightKey)
+            response = 'Right';
+        end
+
+        % Log the result in a struct array 'results'
+        %results(trialNumber).Trial = trialNumber;
+        %results(trialNumber).Response = response;
+        %results(trialNumber).BestImage_Key = bestTexturePosition;
+
+        %     % Check if the Response matches the BestImage_Key and update the 'CorrectAnswers' field
+        %     if strcmp(results(trialNumber).Response, results(trialNumber).BestImage_Key)
+        %         results(trialNumber).CorrectAnswers = 1; % 1 for correct
+        %     else
+        %         results(trialNumber).CorrectAnswers = 0; % 0 for incorrect
+        %     end
+
+        % Alternatively: Can store in a new column in data matrix
+        dataMatrix{trialNumber, 15} = response; % Participant's responses
+        dataMatrix{trialNumber, 16} = bestTexturePosition; % Best Image Key
+
+        % Check if the Response matches the BestImage_Key and update the 'CorrectAnswers' field
+        if strcmp(dataMatrix{trialNumber, 15}, dataMatrix{trialNumber, 16}) % 1 = Correct; 0 = Incorrect
+            dataMatrix{trialNumber, 17} = 1; % 1 for correct
+        else
+            dataMatrix{trialNumber, 17} = 0; % 0 for incorrect
+        end
+
+        dataMatrix{trialNumber, 19} = responseTime; % Response time
+        dataMatrix{trialNumber, 20} = block_number;
+    end
+
+
+    % Calculate the offset for the next block
+    %offset = offset + length(dataMatrix);
+
+    %% Unique Pairs of Stimuli (Matching Pairs)
+    % Initialize a cell array to store unique pairs of stimuli
+    uniqueStimuliPairs = {};
+
+    % Iterate through the dataMatrix and find all unique pairs of stimuli
+    for trialNumber = 1:length(dataMatrix)
+        bestImagePath = dataMatrix{trialNumber, 3};
+        worstImagePath = dataMatrix{trialNumber, 4};
+        bestTexturePosition = dataMatrix{trialNumber, 16};
+        pairFound = false;
+
+        % Check if the current pair of stimuli already exists in uniqueStimuliPairs
+        for pairNumber = 1:length(uniqueStimuliPairs)
+            pair = uniqueStimuliPairs{pairNumber};
+            if strcmp(pair.bestImagePath, bestImagePath) && strcmp(pair.worstImagePath, worstImagePath)
+                pairFound = true;
+                break;
+            end
+        end
+
+        % If the pair does not exist, add it to uniqueStimuliPairs
+        if ~pairFound
+            uniquePair.bestImagePath = bestImagePath;
+            uniquePair.worstImagePath = worstImagePath;
+            uniquePair.bestTexturePosition = bestTexturePosition;
+            uniquePair.totalCorrect = 0;
+            uniqueStimuliPairs{end+1} = uniquePair;
+        end
+    end
+
+    % Iterate through the dataMatrix again to count the correct responses for each unique pair
+    for trialNumber = 1:length(dataMatrix)
+        response = dataMatrix{trialNumber, 15};
+        bestImagePath = dataMatrix{trialNumber, 3};
+        worstImagePath = dataMatrix{trialNumber, 4};
+        bestTexturePosition = dataMatrix{trialNumber, 16};
+
+        % Find the corresponding unique pair in uniqueStimuliPairs
+        for pairNumber = 1:length(uniqueStimuliPairs)
+            pair = uniqueStimuliPairs{pairNumber};
+            if strcmp(pair.bestImagePath, bestImagePath) && strcmp(pair.worstImagePath, worstImagePath)
+                if dataMatrix{trialNumber, 17} == 1 % Check if the response is correct
+                    uniqueStimuliPairs{pairNumber}.totalCorrect = uniqueStimuliPairs{pairNumber}.totalCorrect + 1;
+                end
+                break;
+            end
+        end
+    end
+
+    % Add a new column to dataMatrix to store the total correct responses for each unique pair of stimuli
+    for trialNumber = 1:length(dataMatrix)
+        bestImagePath = dataMatrix{trialNumber, 3};
+        worstImagePath = dataMatrix{trialNumber, 4};
+        bestTexturePosition = dataMatrix{trialNumber, 16};
+
+        % Find the corresponding unique pair in uniqueStimuliPairs
+        for pairNumber = 1:length(uniqueStimuliPairs)
+            pair = uniqueStimuliPairs{pairNumber};
+            if strcmp(pair.bestImagePath, bestImagePath) && strcmp(pair.worstImagePath, worstImagePath)
+                dataMatrix{trialNumber, 18} = pair.totalCorrect;
+                break;
+            end
+        end
+    end
+
+    % Block 1 is completed. Feel free to take a short break!
+    % 4 more blocks to go!
+
+    % createdataMatrix horzcat
+
+%     % Display a message after finishing the first block
+%     if block_number == 1
+%         messageText = 'You have completed the first block. Take a short break and press the space bar to continue to the second block.';
+%         DrawFormattedText(window, messageText, 'center', 'center', textColor);
+%         Screen('Flip', window);
+% 
+%         % Wait for the participant to press the space bar to continue
+%         % Wait for a spacebar keypress to continue
+%         while true
+%             [~, keyCode] = KbWait();
+%             if keyCode(KbName('space'))
+%                 break;
+%             end
+%         end
+% 
+%         % Clear the keyboard buffer to remove any additional keypresses
+%         FlushEvents('keyDown');
+% 
+%         % Add a short delay to give participants time to read the instructions
+%         WaitSecs(1);  % Adjust the delay time as needed (e.g., 1 second)
+%     end
+% 
+
+% Display break message after finishing the block
+    if block_number < numBlocks
+        messageText = ['You have completed block ' num2str(block_number) 'of' num2str(numBlocks) '. Take a short break and press the space bar to continue to the next block.'];
+        DrawFormattedText(window, messageText, 'center', 'center', textColor);
+        Screen('Flip', window);
+
+        % Wait for the participant to press the space bar to continue
+        while true
+            [~, keyCode] = KbWait();
+            if keyCode(KbName('space'))
+                break;
+            end
+        end
+
+        % Clear the keyboard buffer to remove any additional keypresses
+        FlushEvents('keyDown');
+
+        % Add a short delay to give participants time to read the instructions
+        WaitSecs(1);  % Adjust the delay time as needed (e.g., 1 second
+    end
+end
+
+%% Thank you message
+thankYouMessage = 'Thank you for participating in the experiment! Have a good day!';
+thankYouTextSize = 50;  % Adjust the text size as needed
+thankYouTextColor = [255 255 255];  % White color
+
+% Get the size of the thank you text bounding box
+[thankYouTextBounds, ~] = Screen('TextBounds', window, thankYouMessage);
+thankYouTextWidth = thankYouTextBounds(3) - thankYouTextBounds(1);
+thankYouTextHeight = thankYouTextBounds(4) - thankYouTextBounds(2);
+
+% Calculate the position to center the thank you message on the screen
+thankYouTextX = screenWidth / 2 - thankYouTextWidth / 2;
+thankYouTextY = screenHeight / 2 - thankYouTextHeight / 2;
+
+% Draw the thank you message on the screen
+Screen('TextFont', window, textFont);
+Screen('TextSize', window, thankYouTextSize);
+DrawFormattedText(window, thankYouMessage, 'center', 'center', thankYouTextColor);
+
+% Flip the screen to display the thank you message
+Screen('Flip', window);
+
+% Wait for 3 seconds
+WaitSecs(5);
+
+% Stop audio playback and close the audio handle
+PsychPortAudio('Stop', pahandle);
+PsychPortAudio('Close', pahandle);
+
+% Close the Psychtoolbox window
+sca;
+
+% Extract the 'CorrectAnswers' field into a separate array
+%correctAnswersArray = [results.CorrectAnswers];
+
+% Calculate the total number of correct responses (number of ones)
+% numCorrectResponses = sum(correctAnswersArray);
+%numCorrectResponses = sum(dataMatrix{CorrectAnswers});
+%disp(['Total correct responses: ', num2str(dataMatrix(,9))]);
+
+% Save the 'results' variable with the desired variable name
+%variableName = dataMatix;
+
+% Create the variable name by concatenating the participant ID with '_results'
+variableName = strcat(participantID, '_results');
+
+% Assign the 'dataMatrix' to the new variable name
+eval([variableName, ' = dataMatrix;']);
+
+% Save the results variable to a .mat file
+filename = strcat(participantID, '_results.mat');
+save_dir = '/Volumes/WallaceLab/dors/wallacelab/DavidTovar/AV_Sets/100set_FINAL/Code/Participant_Data';
+save(fullfile(save_dir, filename), variableName);
