@@ -1,9 +1,5 @@
 % function [trialOrder] = create_dataMatrix(AudioFilesSet, best_image, worst_image, img_key, binding_max, binding_min, binding_diff, IQA_scores)
 % 
-
-% TEST FOR GITHUB
-% TEST FOR GITHUB PART 2
-
 % trialStruc = vertcat(AudioFilesSet, best_image, worst_image, img_key, binding_max, binding_min, binding_diff, IQA_scores);
 % trialStruc = trialStruc';
 % rng('shuffle')
